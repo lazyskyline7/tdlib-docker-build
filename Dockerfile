@@ -5,8 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        make git zlib1g-dev libssl-dev gperf php-cli cmake clang libc++-dev libc++abi-dev && \
-    rm -rf /var/lib/apt/lists/*
+        make zlib1g-dev libssl-dev gperf php-cli cmake clang libc++-dev libc++abi-dev libclang-rt-14-dev
 
 # Copy the source code
 COPY . /td
