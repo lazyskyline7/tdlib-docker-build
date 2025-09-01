@@ -5,7 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        make zlib1g-dev libssl-dev gperf php-cli cmake clang libc++-dev libc++abi-dev libclang-rt-14-dev
+        make zlib1g-dev libssl-dev gperf php-cli cmake clang libc++-dev libc++abi-dev libclang-rt-14-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the source code
 COPY . /td
@@ -20,7 +21,7 @@ ENV CXX=/usr/bin/clang++
 
 # Configure and build the project
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local ..
-RUN cmake --build . --target install
+RUN cmake --build . --target install -j$(expr $(nproc) - 1)
 
 # Final stage
 FROM debian:bookworm-slim
