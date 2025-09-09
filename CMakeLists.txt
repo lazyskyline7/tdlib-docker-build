@@ -227,11 +227,11 @@ add_subdirectory(sqlite)
 set(TDDB_ENABLE_INSTALL ${TD_INSTALL_STATIC_LIBRARIES} CACHE BOOL "" FORCE)
 add_subdirectory(tddb)
 
-if (BUILD_TESTING)
+if (BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
   add_subdirectory(test)
 endif()
 
-if (NOT CMAKE_CROSSCOMPILING)
+if (NOT CMAKE_CROSSCOMPILING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark")
   add_subdirectory(benchmark)
 endif()
 
