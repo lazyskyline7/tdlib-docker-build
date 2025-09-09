@@ -25,6 +25,7 @@
 #include "td/telegram/Dependencies.h"
 #include "td/telegram/DialogManager.h"
 #include "td/telegram/DialogParticipant.h"
+#include "td/telegram/DialogPhoto.h"
 #include "td/telegram/Dimensions.h"
 #include "td/telegram/Document.h"
 #include "td/telegram/DocumentsManager.h"
@@ -79,6 +80,8 @@
 #include "td/telegram/StarGift.hpp"
 #include "td/telegram/StarGiftId.h"
 #include "td/telegram/StarGiftManager.h"
+#include "td/telegram/StarGiftResalePrice.h"
+#include "td/telegram/StarGiftResalePrice.hpp"
 #include "td/telegram/StarManager.h"
 #include "td/telegram/StickerFormat.h"
 #include "td/telegram/StickersManager.h"
@@ -1312,7 +1315,7 @@ class MessageStarGiftUnique final : public MessageContent {
   DialogId sender_dialog_id;
   DialogId owner_dialog_id;
   int64 saved_id = 0;
-  int64 resale_star_count = 0;
+  StarGiftResalePrice resale_price;
   int64 transfer_star_count = 0;
   int32 can_transfer_at = 0;
   int32 can_resell_at = 0;
@@ -1325,15 +1328,15 @@ class MessageStarGiftUnique final : public MessageContent {
 
   MessageStarGiftUnique() = default;
   MessageStarGiftUnique(MessageId gift_message_id, StarGift &&star_gift, DialogId sender_dialog_id,
-                        DialogId owner_dialog_id, int64 saved_id, int64 resale_star_count, int64 transfer_star_count,
-                        int32 can_transfer_at, int32 can_resell_at, int32 can_export_at, bool is_saved, bool is_upgrade,
-                        bool can_transfer, bool was_transferred, bool was_refunded)
+                        DialogId owner_dialog_id, int64 saved_id, StarGiftResalePrice resale_price,
+                        int64 transfer_star_count, int32 can_transfer_at, int32 can_resell_at, int32 can_export_at,
+                        bool is_saved, bool is_upgrade, bool can_transfer, bool was_transferred, bool was_refunded)
       : gift_message_id(gift_message_id)
       , star_gift(std::move(star_gift))
       , sender_dialog_id(sender_dialog_id)
       , owner_dialog_id(owner_dialog_id)
       , saved_id(saved_id)
-      , resale_star_count(resale_star_count)
+      , resale_price(resale_price)
       , transfer_star_count(transfer_star_count)
       , can_transfer_at(can_transfer_at)
       , can_resell_at(can_resell_at)
@@ -2291,8 +2294,8 @@ static void store(const MessageContent *content, StorerT &storer) {
       bool has_sender_dialog_id = m->sender_dialog_id.is_valid();
       bool has_can_transfer_at = m->can_transfer_at != 0;
       bool has_can_resell_at = m->can_resell_at != 0;
-      bool has_resale_star_count = m->resale_star_count != 0;
       bool has_gift_message_id = m->gift_message_id.is_valid();
+      bool has_resale_price = !m->resale_price.is_empty();
       BEGIN_STORE_FLAGS();
       STORE_FLAG(has_transfer_star_count);
       STORE_FLAG(has_can_export_at);
@@ -2306,8 +2309,9 @@ static void store(const MessageContent *content, StorerT &storer) {
       STORE_FLAG(has_sender_dialog_id);
       STORE_FLAG(has_can_transfer_at);
       STORE_FLAG(has_can_resell_at);
-      STORE_FLAG(has_resale_star_count);
+      STORE_FLAG(false);  // has_resale_star_count
       STORE_FLAG(has_gift_message_id);
+      STORE_FLAG(has_resale_price);
       END_STORE_FLAGS();
       store(m->star_gift, storer);
       if (has_transfer_star_count) {
@@ -2331,11 +2335,11 @@ static void store(const MessageContent *content, StorerT &storer) {
       if (has_can_resell_at) {
         store(m->can_resell_at, storer);
       }
-      if (has_resale_star_count) {
-        store(m->resale_star_count, storer);
-      }
       if (has_gift_message_id) {
         store(m->gift_message_id, storer);
+      }
+      if (has_resale_price) {
+        store(m->resale_price, storer);
       }
       break;
     }
@@ -3481,6 +3485,7 @@ static void parse(unique_ptr<MessageContent> &content, ParserT &parser) {
       bool has_can_resell_at;
       bool has_resale_star_count;
       bool has_gift_message_id;
+      bool has_resale_price;
       BEGIN_PARSE_FLAGS();
       PARSE_FLAG(has_transfer_star_count);
       PARSE_FLAG(has_can_export_at);
@@ -3496,6 +3501,7 @@ static void parse(unique_ptr<MessageContent> &content, ParserT &parser) {
       PARSE_FLAG(has_can_resell_at);
       PARSE_FLAG(has_resale_star_count);
       PARSE_FLAG(has_gift_message_id);
+      PARSE_FLAG(has_resale_price);
       END_PARSE_FLAGS();
       parse(m->star_gift, parser);
       if (has_transfer_star_count) {
@@ -3520,10 +3526,15 @@ static void parse(unique_ptr<MessageContent> &content, ParserT &parser) {
         parse(m->can_resell_at, parser);
       }
       if (has_resale_star_count) {
-        parse(m->resale_star_count, parser);
+        int64 resale_star_count;
+        parse(resale_star_count, parser);
+        m->resale_price = StarGiftResalePrice::legacy(resale_star_count);
       }
       if (has_gift_message_id) {
         parse(m->gift_message_id, parser);
+      }
+      if (has_resale_price) {
+        parse(m->resale_price, parser);
       }
       if (!m->star_gift.is_valid() || m->star_gift.is_unique() == m->was_refunded) {
         is_bad = true;
@@ -5249,7 +5260,7 @@ Status can_send_message_content(DialogId dialog_id, const MessageContent *conten
       }
       if (dialog_type == DialogType::User &&
           td->user_manager_->get_user_voice_messages_forbidden(dialog_id.get_user_id())) {
-        return Status::Error(400, "User restricted receiving of voice messages");
+        return Status::Error(400, "User restricted receiving of video note messages");
       }
       break;
     case MessageContentType::VoiceNote:
@@ -5258,7 +5269,7 @@ Status can_send_message_content(DialogId dialog_id, const MessageContent *conten
       }
       if (dialog_type == DialogType::User &&
           td->user_manager_->get_user_voice_messages_forbidden(dialog_id.get_user_id())) {
-        return Status::Error(400, "User restricted receiving of video messages");
+        return Status::Error(400, "User restricted receiving of voice note messages");
       }
       break;
     case MessageContentType::None:
@@ -7130,7 +7141,7 @@ void compare_message_contents(Td *td, const MessageContent *old_content, const M
       const auto *rhs = static_cast<const MessageStarGiftUnique *>(new_content);
       if (lhs->gift_message_id != rhs->gift_message_id || lhs->star_gift != rhs->star_gift ||
           lhs->sender_dialog_id != rhs->sender_dialog_id || lhs->owner_dialog_id != rhs->owner_dialog_id ||
-          lhs->saved_id != rhs->saved_id || lhs->resale_star_count != rhs->resale_star_count ||
+          lhs->saved_id != rhs->saved_id || lhs->resale_price != rhs->resale_price ||
           lhs->transfer_star_count != rhs->transfer_star_count || lhs->can_transfer_at != rhs->can_transfer_at ||
           lhs->can_resell_at != rhs->can_resell_at || lhs->can_export_at != rhs->can_export_at ||
           lhs->is_saved != rhs->is_saved || lhs->is_upgrade != rhs->is_upgrade ||
@@ -9155,7 +9166,7 @@ unique_ptr<MessageContent> get_action_message_content(Td *td, tl_object_ptr<tele
       if (!reply_to_message_id.is_valid() && reply_to_message_id != MessageId()) {
         LOG(ERROR) << "Receive unique gift message with " << reply_to_message_id << " in " << owner_dialog_id;
         reply_to_message_id = MessageId();
-      } else if (reply_to_message_id != MessageId() && action->resale_stars_ != 0) {
+      } else if (reply_to_message_id != MessageId() && action->resale_amount_ != nullptr) {
         if (message_date >= 1754000000) {
           LOG(ERROR) << "Receive " << replied_message_info << " in " << owner_dialog_id << " for " << to_string(action);
         }
@@ -9173,7 +9184,7 @@ unique_ptr<MessageContent> get_action_message_content(Td *td, tl_object_ptr<tele
       }
       return td::make_unique<MessageStarGiftUnique>(
           reply_to_message_id, std::move(star_gift), gift_sender_dialog_id, gift_owner_dialog_id, saved_id,
-          StarManager::get_star_count(action->resale_stars_), StarManager::get_star_count(action->transfer_stars_),
+          StarGiftResalePrice(std::move(action->resale_amount_)), StarManager::get_star_count(action->transfer_stars_),
           max(0, action->can_transfer_at_), max(0, action->can_resell_at_), max(0, action->can_export_at_),
           action->saved_, action->upgrade_,
           (action->flags_ & telegram_api::messageActionStarGiftUnique::TRANSFER_STARS_MASK) != 0, action->transferred_,
@@ -9827,8 +9838,8 @@ td_api::object_ptr<td_api::MessageContent> get_message_content_object(
         }
       }
       auto origin = [&]() -> td_api::object_ptr<td_api::UpgradedGiftOrigin> {
-        if (m->resale_star_count != 0) {
-          return td_api::make_object<td_api::upgradedGiftOriginResale>(m->resale_star_count);
+        if (!m->resale_price.is_empty()) {
+          return td_api::make_object<td_api::upgradedGiftOriginResale>(m->resale_price.get_gift_resale_price_object());
         }
         if (m->is_upgrade) {
           return td_api::make_object<td_api::upgradedGiftOriginUpgrade>(m->gift_message_id.get());
