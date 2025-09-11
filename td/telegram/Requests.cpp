@@ -7719,6 +7719,15 @@ void Requests::on_request(uint64 id, td_api::upgradeGift &request) {
                                         request.star_count_, std::move(promise));
 }
 
+void Requests::on_request(uint64 id, td_api::buyGiftUpgrade &request) {
+  CHECK_IS_USER();
+  CLEAN_INPUT_STRING(request.prepaid_upgrade_hash_);
+  CREATE_OK_REQUEST_PROMISE();
+  TRY_RESULT_PROMISE(promise, owner_dialog_id, get_message_sender_dialog_id(td_, request.owner_id_, true, false));
+  td_->star_gift_manager_->buy_gift_upgrade(owner_dialog_id, request.prepaid_upgrade_hash_, request.star_count_,
+                                            std::move(promise));
+}
+
 void Requests::on_request(uint64 id, td_api::transferGift &request) {
   CHECK_IS_USER_OR_BUSINESS();
   CREATE_OK_REQUEST_PROMISE();
@@ -7746,8 +7755,8 @@ void Requests::on_request(uint64 id, td_api::getReceivedGifts &request) {
   td_->star_gift_manager_->get_saved_star_gifts(
       BusinessConnectionId(std::move(request.business_connection_id_)), owner_dialog_id,
       StarGiftCollectionId(request.collection_id_), request.exclude_unsaved_, request.exclude_saved_,
-      request.exclude_unlimited_, request.exclude_limited_, request.exclude_upgraded_, request.sort_by_price_,
-      request.offset_, request.limit_, std::move(promise));
+      request.exclude_unlimited_, request.exclude_upgradable_, request.exclude_non_upgradable_,
+      request.exclude_upgraded_, request.sort_by_price_, request.offset_, request.limit_, std::move(promise));
 }
 
 void Requests::on_request(uint64 id, const td_api::getReceivedGift &request) {
@@ -7761,6 +7770,13 @@ void Requests::on_request(uint64 id, td_api::getUpgradedGift &request) {
   CLEAN_INPUT_STRING(request.name_);
   CREATE_REQUEST_PROMISE();
   td_->star_gift_manager_->get_upgraded_gift(request.name_, std::move(promise));
+}
+
+void Requests::on_request(uint64 id, td_api::getUpgradedGiftValueInfo &request) {
+  CHECK_IS_USER();
+  CLEAN_INPUT_STRING(request.name_);
+  CREATE_REQUEST_PROMISE();
+  td_->star_gift_manager_->get_upgraded_gift_value_info(request.name_, std::move(promise));
 }
 
 void Requests::on_request(uint64 id, const td_api::getUpgradedGiftWithdrawalUrl &request) {
