@@ -1,0 +1,7 @@
+.git
+.gitignore
+Dockerfile
+build/
+*.md
+benchmark/
+example/
