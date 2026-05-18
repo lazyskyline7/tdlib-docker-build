@@ -1,6 +1,6 @@
 # TDLib Docker Image
 
-![TDLib Version](https://img.shields.io/badge/TDLib-1.8.63-blue)
+![TDLib Version](https://img.shields.io/badge/TDLib-1.8.64-blue)
 [![Docker Pulls](https://img.shields.io/docker/pulls/lazyskyline/tdlib)](https://hub.docker.com/r/lazyskyline/tdlib)
 [![Image Size](https://img.shields.io/docker/image-size/lazyskyline/tdlib/latest)](https://hub.docker.com/r/lazyskyline/tdlib)
 [![Deployment](https://github.com/lazyskyline7/tdlib-docker/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/lazyskyline7/tdlib-docker/actions/workflows/build-and-push.yml)
