@@ -34,9 +34,13 @@ if [ -n "$(git status --porcelain README.md)" ]; then
     git commit -m "docs: bump TDLib version badge to ${VERSION}"
 fi
 
-# 5. Create tag from version in CMakeLists.txt
-echo "==> Creating tag..."
-./add_git_tag.sh
+# 5. Create/force-update local tag (force-pushed in step 6)
+if [ -z "$VERSION" ]; then
+    echo "Error: Could not extract TDLib version from CMakeLists.txt."
+    exit 1
+fi
+echo "==> Tagging ${VERSION}..."
+git tag -f "${VERSION}"
 
 # 6. Summary
 echo ""
@@ -52,10 +56,15 @@ read -p "Push all? [y/N] " -n 1 -r
 echo ""
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    git push origin master build "${VERSION}"
+    # Leading '+' force-updates the tag ref only; master/build stay fast-forward
+    # (never force branches). --atomic so a rejected branch push can't leave a
+    # half-released state where the tag moved but the branches didn't.
+    git push --atomic origin master build "+refs/tags/${VERSION}"
     echo ""
     echo "Done! CI/CD will build and release ${VERSION}."
+    echo "Note: ${VERSION} was force-pushed. CI may NOT auto-trigger on a moved tag;"
+    echo "      re-run the release pipeline manually if no build starts."
 else
     echo "Aborted. You can push manually:"
-    echo "  git push origin master build ${VERSION}"
+    echo "  git push --atomic origin master build \"+refs/tags/${VERSION}\""
 fi
