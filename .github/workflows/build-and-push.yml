@@ -8,11 +8,24 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - platform: linux/amd64
+          - variant: debian
+            dockerfile: Dockerfile
+            platform: linux/amd64
             runner: ubuntu-latest
-          - platform: linux/arm64
+          - variant: debian
+            dockerfile: Dockerfile
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - variant: alpine
+            dockerfile: Dockerfile.alpine
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - variant: alpine
+            dockerfile: Dockerfile.alpine
+            platform: linux/arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -47,11 +60,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile
+          file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=lazyskyline/tdlib,push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ steps.prep.outputs.pair }}
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ steps.prep.outputs.pair }},mode=max
+          # Per-variant cache scope: musl-built layers must NEVER share cache with
+          # glibc-built layers — they would produce broken images on cache hit.
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ matrix.variant }}-${{ steps.prep.outputs.pair }},mode=max
 
       - name: Export digest
         run: |
@@ -62,7 +77,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digest-${{ steps.prep.outputs.pair }}
+          name: digest-${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -70,6 +85,10 @@ jobs:
   merge:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [debian, alpine]
     permissions:
       contents: read
       packages: write
@@ -83,19 +102,32 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Download digests
+      - name: Download digests for this variant
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digest-*
+          pattern: digest-${{ matrix.variant }}-*
           merge-multiple: true
 
       - name: Create and push manifest
+        env:
+          VERSION: ${{ github.ref_name }}
+          VARIANT: ${{ matrix.variant }}
         run: |
           cd /tmp/digests
+          if [ "$VARIANT" = "debian" ]; then
+            # Debian is the default — owns :latest, :<version>, :<version>-debian, :debian
+            TAGS="-t lazyskyline/tdlib:latest \
+                  -t lazyskyline/tdlib:${VERSION} \
+                  -t lazyskyline/tdlib:${VERSION}-debian \
+                  -t lazyskyline/tdlib:debian"
+          else
+            # Alpine is opt-in — owns :alpine, :<version>-alpine
+            TAGS="-t lazyskyline/tdlib:alpine \
+                  -t lazyskyline/tdlib:${VERSION}-alpine"
+          fi
           docker buildx imagetools create \
-            -t lazyskyline/tdlib:${{ github.ref_name }} \
-            -t lazyskyline/tdlib:latest \
+            $TAGS \
             $(printf 'lazyskyline/tdlib@sha256:%s ' *)
 
   create-release:

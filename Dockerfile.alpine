@@ -1,11 +1,10 @@
 # Build stage
-FROM debian:bookworm AS builder
+FROM alpine:3.21 AS builder
 
-# Install build dependencies. gcc + libstdc++ is TDLib upstream's primary
-# target, so we get their CI's bug fixes for free.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake gperf zlib1g-dev libssl-dev php git ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache \
+    make zlib-dev openssl-dev gperf php83 cmake clang libc++-dev \
+    compiler-rt linux-headers llvm-libunwind-dev
 
 # Copy the source code
 COPY . /td
@@ -13,33 +12,36 @@ COPY . /td
 # Set the working directory
 WORKDIR /td/build
 
-# Configure and build the project. Cache build tool state for faster rebuilds.
+# Set environment variables for clang
+ENV CXXFLAGS="-stdlib=libc++"
+ENV CC=/usr/bin/clang
+ENV CXX=/usr/bin/clang++
+
+# Configure and build the project. Use cache for build tools (CMake, compilers).
 RUN --mount=type=cache,target=/root/.cache \
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local ..
 RUN --mount=type=cache,target=/root/.cache \
     cmake --build . --parallel $(nproc) --target install
 
 # Strip debug symbols and remove static libs, headers, cmake files
-RUN find /usr/local/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + && \
+RUN find /usr/local/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + || true && \
     find /usr/local/lib -type f -name '*.a' -delete && \
     rm -rf /usr/local/include /usr/local/lib/cmake
 
 # Final stage
-FROM debian:bookworm-slim
+FROM alpine:3.21
 
-# Install only runtime dependencies (glibc + libstdc++ come with the base)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 zlib1g \
- && rm -rf /var/lib/apt/lists/*
+# Install only runtime dependencies
+RUN apk add --no-cache libssl3 zlib libc++ libgcc llvm-libunwind
 
 # Create a non-root user for runtime
-RUN groupadd -r app && useradd -r -g app app
+RUN addgroup -S app && adduser -S app -G app
 
 # Copy only the shared library from the builder stage
 COPY --from=builder --chown=app:app /usr/local/lib/libtdjson.so* /usr/local/lib/
 
 # Update linker cache with newly copied libraries
-RUN ldconfig
+RUN ldconfig /usr/local/lib || true
 
 # Ensure /usr/local/bin is in PATH and run as non-root
 ENV PATH="/usr/local/bin:${PATH}"
