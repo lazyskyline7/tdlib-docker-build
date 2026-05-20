@@ -38,8 +38,15 @@ RUN groupadd -r app && useradd -r -g app app
 # Copy only the shared library from the builder stage
 COPY --from=builder --chown=app:app /usr/local/lib/libtdjson.so* /usr/local/lib/
 
-# Update linker cache with newly copied libraries
-RUN ldconfig
+# COPY de-references the linker-name symlink into a duplicate regular file
+# (~33 MB wasted). Restore it as a real symlink so `dlopen("libtdjson.so")` —
+# what TDLib's Python example and many ctypes-based bindings use — resolves
+# via the ldconfig cache, not just the versioned SONAME.
+RUN cd /usr/local/lib && \
+    real=$(ls libtdjson.so.* | sort -V | tail -n1) && \
+    rm -f libtdjson.so && ln -s "$real" libtdjson.so && \
+    chown -h app:app libtdjson.so && \
+    ldconfig
 
 # Ensure /usr/local/bin is in PATH and run as non-root
 ENV PATH="/usr/local/bin:${PATH}"
