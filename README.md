@@ -38,13 +38,15 @@ Three patterns, in order of how often they're used.
 
 The canonical pattern. Your runtime image stays small; you just lift `libtdjson.so`.
 
+> **Use a directory COPY (`/usr/local/lib/`), not a wildcard.** Docker's `COPY` de-references symlinks when the source is a glob or a single symlink file, which turns the unversioned `libtdjson.so` link into a duplicate 33 MB regular file and breaks `dlopen("libtdjson.so")` on glibc. Copying the directory preserves the symlink and keeps the image small.
+
 **Python:**
 
 ```dockerfile
 FROM lazyskyline/tdlib:latest AS tdlib
 
 FROM python:3.12-slim
-COPY --from=tdlib /usr/local/lib/libtdjson.so* /usr/local/lib/
+COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
 RUN ldconfig
 RUN pip install --no-cache-dir python-telegram
 COPY app.py /app/
@@ -58,7 +60,7 @@ CMD ["python", "app.py"]
 FROM lazyskyline/tdlib:latest AS tdlib
 
 FROM node:20-slim
-COPY --from=tdlib /usr/local/lib/libtdjson.so* /usr/local/lib/
+COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
 RUN ldconfig
 WORKDIR /app
 COPY package*.json ./
@@ -73,7 +75,7 @@ CMD ["node", "bot.js"]
 FROM lazyskyline/tdlib:latest AS tdlib
 
 FROM golang:1.22-bookworm
-COPY --from=tdlib /usr/local/lib/libtdjson.so* /usr/local/lib/
+COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
 RUN ldconfig
 WORKDIR /src
 COPY . .
@@ -101,9 +103,12 @@ Pull the lib out of the image and drop it next to a binary running on a VM, CI r
 
 ```sh
 docker create --name td-extract lazyskyline/tdlib:latest
-docker cp td-extract:/usr/local/lib/libtdjson.so ./libtdjson.so
+docker cp td-extract:/usr/local/lib/. ./tdlib-libs/   # trailing /. copies directory contents and preserves symlinks
 docker rm td-extract
+sudo cp -P ./tdlib-libs/* /usr/local/lib/ && sudo ldconfig
 ```
+
+The trailing `/.` matters: `docker cp` follows a symlink if you point it at one directly, but copies the symlink-as-symlink when you copy a directory's contents. After installing to `/usr/local/lib`, `cp -P` preserves the symlink, and `ldconfig` registers both `libtdjson.so` and the versioned SONAME in the loader cache.
 
 The extracted `.so` is a standard glibc shared library — usable on any modern glibc Linux (Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+, Arch, Fedora). For Alpine hosts, extract from `:alpine` instead.
 
