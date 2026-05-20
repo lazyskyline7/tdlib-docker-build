@@ -126,13 +126,21 @@ jobs:
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          # Pass body via env (multiline-safe, NOT shell-interpolated). Body
+          # contains upstream commit subjects which may include backticks,
+          # $(...), em-dashes, etc.; interpolating via ${{ }} would let bash
+          # parse them as command substitution and blow up.
+          BODY: ${{ steps.get_changes.outputs.body }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes "${{ steps.get_changes.outputs.body }}" \
-          || gh release edit "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes "${{ steps.get_changes.outputs.body }}"
+          printf '%s\n' "$BODY" > /tmp/release-notes.md
+          # Idempotent: tags get force-pushed under the dup-tag policy, so the
+          # release object often already exists. Check first, then create or edit.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
+          fi
 
   update-dockerhub-description:
     needs: merge
