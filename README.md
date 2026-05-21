@@ -83,6 +83,22 @@ RUN go build -o /bot ./cmd/bot
 CMD ["/bot"]
 ```
 
+**Python (Alpine consumer — `:alpine` variant):**
+
+The Alpine image is built with clang/libc++, so Alpine consumers must install those runtime libraries explicitly.
+
+```dockerfile
+FROM lazyskyline/tdlib:alpine AS tdlib
+
+FROM python:3.12-alpine
+RUN apk add --no-cache libssl3 zlib libc++ libgcc llvm-libunwind
+COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
+RUN pip install --no-cache-dir python-telegram
+COPY app.py /app/
+WORKDIR /app
+CMD ["python", "app.py"]
+```
+
 ### Pattern B — `FROM lazyskyline/tdlib` as a base
 
 Simpler when your app is mostly TDLib glue. You inherit Debian + the lib in one shot.
