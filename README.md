@@ -3,7 +3,7 @@
 ![TDLib Version](https://img.shields.io/badge/TDLib-1.8.64-blue)
 [![Docker Pulls](https://img.shields.io/docker/pulls/lazyskyline/tdlib)](https://hub.docker.com/r/lazyskyline/tdlib)
 [![Image Size](https://img.shields.io/docker/image-size/lazyskyline/tdlib/latest)](https://hub.docker.com/r/lazyskyline/tdlib)
-[![Deployment](https://github.com/lazyskyline7/tdlib-docker/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/lazyskyline7/tdlib-docker/actions/workflows/build-and-push.yml)
+[![Deployment](https://github.com/klhq/tdlib-docker/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/klhq/tdlib-docker/actions/workflows/build-and-push.yml)
 
 Prebuilt, multi-arch Docker images of [TDLib (Telegram Database Library)](https://core.telegram.org/tdlib). Drop `libtdjson.so` into your bot, client, or service and skip the 30–60 minute TDLib compile.
 
@@ -199,7 +199,7 @@ To target an older glibc, swap the base images in `Dockerfile` from `bookworm` t
 
 The image version tracks TDLib upstream's version, sourced from [`CMakeLists.txt`](./CMakeLists.txt) (`project(TDLib VERSION X.Y.Z ...)`). Releases are tagged on GitHub when upstream cuts a new version; CI then builds and pushes the matching Docker tags.
 
-See [GitHub Releases](https://github.com/lazyskyline7/tdlib-docker/releases) for per-version changelogs.
+See [GitHub Releases](https://github.com/klhq/tdlib-docker/releases) for per-version changelogs.
 
 ---
 
@@ -216,7 +216,7 @@ See [GitHub Releases](https://github.com/lazyskyline7/tdlib-docker/releases) for
 - [TDLib documentation](https://core.telegram.org/tdlib)
 - [TDLib API reference](https://core.telegram.org/tdlib/docs/)
 - [TDLib examples (upstream)](https://github.com/tdlib/td/tree/master/example)
-- [This repository's source & issues](https://github.com/lazyskyline7/tdlib-docker)
+- [This repository's source & issues](https://github.com/klhq/tdlib-docker)
 
 ## License
 
