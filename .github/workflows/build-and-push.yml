@@ -65,8 +65,8 @@ jobs:
           outputs: type=image,name=lazyskyline/tdlib,push-by-digest=true,name-canonical=true,push=true
           # Per-variant cache scope: musl-built layers must NEVER share cache with
           # glibc-built layers — they would produce broken images on cache hit.
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-buildcache-${{ matrix.variant }}-${{ steps.prep.outputs.pair }},mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
 
       - name: Export digest
         run: |
