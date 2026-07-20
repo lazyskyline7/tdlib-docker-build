@@ -182,9 +182,16 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Update Docker Hub Description
+        id: dockerhub_description
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: lazyskyline/tdlib
           readme-filepath: ./README.md
+
+      - name: Warn when Docker Hub description update is forbidden
+        if: ${{ steps.dockerhub_description.outcome == 'failure' }}
+        run: |
+          echo "::warning::Docker Hub description update was skipped due to insufficient permissions (Forbidden). Image publish and release creation are unaffected."
