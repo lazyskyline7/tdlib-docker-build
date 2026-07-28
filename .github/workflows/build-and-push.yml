@@ -62,7 +62,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=lazyskyline/tdlib,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=klhq/tdlib,push-by-digest=true,name-canonical=true,push=true
           # Per-variant cache scope: musl-built layers must NEVER share cache with
           # glibc-built layers — they would produce broken images on cache hit.
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tdlib-cache:${{ matrix.variant }}-${{ steps.prep.outputs.pair }}
@@ -117,18 +117,18 @@ jobs:
           cd /tmp/digests
           if [ "$VARIANT" = "debian" ]; then
             # Debian is the default — owns :latest, :<version>, :<version>-debian, :debian
-            TAGS="-t lazyskyline/tdlib:latest \
-                  -t lazyskyline/tdlib:${VERSION} \
-                  -t lazyskyline/tdlib:${VERSION}-debian \
-                  -t lazyskyline/tdlib:debian"
+            TAGS="-t klhq/tdlib:latest \
+                  -t klhq/tdlib:${VERSION} \
+                  -t klhq/tdlib:${VERSION}-debian \
+                  -t klhq/tdlib:debian"
           else
             # Alpine is opt-in — owns :alpine, :<version>-alpine
-            TAGS="-t lazyskyline/tdlib:alpine \
-                  -t lazyskyline/tdlib:${VERSION}-alpine"
+            TAGS="-t klhq/tdlib:alpine \
+                  -t klhq/tdlib:${VERSION}-alpine"
           fi
           docker buildx imagetools create \
             $TAGS \
-            $(printf 'lazyskyline/tdlib@sha256:%s ' *)
+            $(printf 'klhq/tdlib@sha256:%s ' *)
 
   create-release:
     needs: merge
@@ -188,7 +188,7 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: lazyskyline/tdlib
+          repository: klhq/tdlib
           readme-filepath: ./README.md
 
       - name: Warn when Docker Hub description update is forbidden

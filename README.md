@@ -1,15 +1,15 @@
 # TDLib Docker Image
 
 ![TDLib Version](https://img.shields.io/badge/TDLib-1.8.66-blue)
-[![Docker Pulls](https://img.shields.io/docker/pulls/lazyskyline/tdlib)](https://hub.docker.com/r/lazyskyline/tdlib)
-[![Image Size](https://img.shields.io/docker/image-size/lazyskyline/tdlib/latest)](https://hub.docker.com/r/lazyskyline/tdlib)
+[![Docker Pulls](https://img.shields.io/docker/pulls/klhq/tdlib)](https://hub.docker.com/r/klhq/tdlib)
+[![Image Size](https://img.shields.io/docker/image-size/klhq/tdlib/latest)](https://hub.docker.com/r/klhq/tdlib)
 [![Deployment](https://github.com/klhq/tdlib-docker/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/klhq/tdlib-docker/actions/workflows/build-and-push.yml)
 
 Prebuilt, multi-arch Docker images of [TDLib (Telegram Database Library)](https://core.telegram.org/tdlib). Drop `libtdjson.so` into your bot, client, or service and skip the 30–60 minute TDLib compile.
 
 ```sh
-docker pull lazyskyline/tdlib        # Debian, glibc — default
-docker pull lazyskyline/tdlib:alpine # Alpine, musl — opt-in
+docker pull klhq/tdlib        # Debian, glibc — default
+docker pull klhq/tdlib:alpine # Alpine, musl — opt-in
 ```
 
 Both variants ship `linux/amd64` and `linux/arm64`.
@@ -20,13 +20,13 @@ Both variants ship `linux/amd64` and `linux/arm64`.
 
 | Your stack | Pull this |
 |---|---|
-| Python (`python:3.x`, `python:3.x-slim`), Node (`node:x`, `node:x-slim`), Go (cgo), Java/Kotlin (JNI), bare-metal Ubuntu/Debian/RHEL/Arch | **`lazyskyline/tdlib`** (Debian, glibc) |
-| Everything on Alpine (`python:3.x-alpine`, `node:x-alpine`, static Go on musl) | `lazyskyline/tdlib:alpine` |
-| Specific TDLib version | `lazyskyline/tdlib:1.8.64` (Debian) or `lazyskyline/tdlib:1.8.64-alpine` |
+| Python (`python:3.x`, `python:3.x-slim`), Node (`node:x`, `node:x-slim`), Go (cgo), Java/Kotlin (JNI), bare-metal Ubuntu/Debian/RHEL/Arch | **`klhq/tdlib`** (Debian, glibc) |
+| Everything on Alpine (`python:3.x-alpine`, `node:x-alpine`, static Go on musl) | `klhq/tdlib:alpine` |
+| Specific TDLib version | `klhq/tdlib:1.8.64` (Debian) or `klhq/tdlib:1.8.64-alpine` |
 
 > **Compatibility rule:** a shared library built against one libc cannot be loaded by a process running on the other. Pick the variant matching your consumer's libc — **don't mix glibc and musl** in the same image.
 
-If unsure, pull the default (`lazyskyline/tdlib`). It works for ~95% of real-world TDLib consumers.
+If unsure, pull the default (`klhq/tdlib`). It works for ~95% of real-world TDLib consumers.
 
 ---
 
@@ -43,7 +43,7 @@ The canonical pattern. Your runtime image stays small; you just lift `libtdjson.
 **Python:**
 
 ```dockerfile
-FROM lazyskyline/tdlib:latest AS tdlib
+FROM klhq/tdlib:latest AS tdlib
 
 FROM python:3.12-slim
 COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
@@ -57,7 +57,7 @@ CMD ["python", "app.py"]
 **Node.js:**
 
 ```dockerfile
-FROM lazyskyline/tdlib:latest AS tdlib
+FROM klhq/tdlib:latest AS tdlib
 
 FROM node:20-slim
 COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
@@ -72,7 +72,7 @@ CMD ["node", "bot.js"]
 **Go (cgo bindings):**
 
 ```dockerfile
-FROM lazyskyline/tdlib:latest AS tdlib
+FROM klhq/tdlib:latest AS tdlib
 
 FROM golang:1.22-bookworm
 COPY --from=tdlib /usr/local/lib/ /usr/local/lib/
@@ -88,7 +88,7 @@ CMD ["/bot"]
 The Alpine image is built with clang/libc++, so Alpine consumers must install those runtime libraries explicitly.
 
 ```dockerfile
-FROM lazyskyline/tdlib:alpine AS tdlib
+FROM klhq/tdlib:alpine AS tdlib
 
 FROM python:3.12-alpine
 RUN apk add --no-cache libssl3 zlib libc++ libgcc llvm-libunwind
@@ -99,12 +99,12 @@ WORKDIR /app
 CMD ["python", "app.py"]
 ```
 
-### Pattern B — `FROM lazyskyline/tdlib` as a base
+### Pattern B — `FROM klhq/tdlib` as a base
 
 Simpler when your app is mostly TDLib glue. You inherit Debian + the lib in one shot.
 
 ```dockerfile
-FROM lazyskyline/tdlib:latest
+FROM klhq/tdlib:latest
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
  && rm -rf /var/lib/apt/lists/*
@@ -118,7 +118,7 @@ CMD ["python3", "/app/app.py"]
 Pull the lib out of the image and drop it next to a binary running on a VM, CI runner, or developer laptop.
 
 ```sh
-docker create --name td-extract lazyskyline/tdlib:latest
+docker create --name td-extract klhq/tdlib:latest
 docker cp td-extract:/usr/local/lib/. ./tdlib-libs/   # trailing /. copies directory contents and preserves symlinks
 docker rm td-extract
 sudo cp -P ./tdlib-libs/* /usr/local/lib/ && sudo ldconfig
@@ -134,14 +134,14 @@ The extracted `.so` is a standard glibc shared library — usable on any modern 
 
 | TDLib variant | Consumer image / host | Works? |
 |---|---|---|
-| `lazyskyline/tdlib` (Debian, glibc) | `python:3.x` / `python:3.x-slim` | ✅ |
-| `lazyskyline/tdlib` (Debian, glibc) | `node:x` / `node:x-slim` | ✅ |
-| `lazyskyline/tdlib` (Debian, glibc) | `golang:1.x-bookworm` | ✅ |
-| `lazyskyline/tdlib` (Debian, glibc) | `openjdk:x` / `eclipse-temurin:x` | ✅ |
-| `lazyskyline/tdlib` (Debian, glibc) | Ubuntu 22.04+ / Debian 12+ / RHEL 9+ host | ✅ |
-| `lazyskyline/tdlib` (Debian, glibc) | `*-alpine` consumer | ❌ |
-| `lazyskyline/tdlib:alpine` (musl) | `*-alpine` consumer | ✅ |
-| `lazyskyline/tdlib:alpine` (musl) | glibc consumer (slim, bookworm, ubuntu, etc.) | ❌ |
+| `klhq/tdlib` (Debian, glibc) | `python:3.x` / `python:3.x-slim` | ✅ |
+| `klhq/tdlib` (Debian, glibc) | `node:x` / `node:x-slim` | ✅ |
+| `klhq/tdlib` (Debian, glibc) | `golang:1.x-bookworm` | ✅ |
+| `klhq/tdlib` (Debian, glibc) | `openjdk:x` / `eclipse-temurin:x` | ✅ |
+| `klhq/tdlib` (Debian, glibc) | Ubuntu 22.04+ / Debian 12+ / RHEL 9+ host | ✅ |
+| `klhq/tdlib` (Debian, glibc) | `*-alpine` consumer | ❌ |
+| `klhq/tdlib:alpine` (musl) | `*-alpine` consumer | ✅ |
+| `klhq/tdlib:alpine` (musl) | glibc consumer (slim, bookworm, ubuntu, etc.) | ❌ |
 
 glibc is forward-compatible: the Debian variant (built on bookworm, glibc 2.36) runs anywhere with glibc ≥ 2.36. For older systems (Ubuntu 20.04, RHEL 8), build the image locally on `debian:bullseye` — see [Building locally](#building-locally).
 
@@ -174,7 +174,7 @@ Both variants link OpenSSL 3 and zlib dynamically. Debug symbols are stripped.
 | `alpine` | Alpine (latest version) | amd64 + arm64 |
 | `1.8.64-alpine` | Alpine | amd64 + arm64 |
 
-Full list: [hub.docker.com/r/lazyskyline/tdlib/tags](https://hub.docker.com/r/lazyskyline/tdlib/tags).
+Full list: [hub.docker.com/r/klhq/tdlib/tags](https://hub.docker.com/r/klhq/tdlib/tags).
 
 ---
 
@@ -205,9 +205,9 @@ See [GitHub Releases](https://github.com/klhq/tdlib-docker/releases) for per-ver
 
 ## Breaking change: default variant is now Debian
 
-`lazyskyline/tdlib:latest` previously pointed to the Alpine-based (musl) image. It now points to the Debian-based (glibc) variant, which matches the libc of the overwhelming majority of TDLib consumers (Python, Node, Go cgo, Java, Ubuntu/Debian/RHEL hosts).
+`klhq/tdlib:latest` previously pointed to the Alpine-based (musl) image. It now points to the Debian-based (glibc) variant, which matches the libc of the overwhelming majority of TDLib consumers (Python, Node, Go cgo, Java, Ubuntu/Debian/RHEL hosts).
 
-**If you were relying on the Alpine variant**, pin to `lazyskyline/tdlib:alpine` for the moving Alpine tag, or `lazyskyline/tdlib:<version>-alpine` for a versioned pin.
+**If you were relying on the Alpine variant**, pin to `klhq/tdlib:alpine` for the moving Alpine tag, or `klhq/tdlib:<version>-alpine` for a versioned pin.
 
 ---
 
